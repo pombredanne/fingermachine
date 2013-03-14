@@ -11,8 +11,11 @@ def get_center(contour):
 
     """
     moments = cv2.moments(contour)
-    x = moments['m10'] / moments['m00']
-    y = moments['m01'] / moments['m00']
+    try:
+        x = moments['m10'] / moments['m00']
+        y = moments['m01'] / moments['m00']
+    except ZeroDivisionError:
+        return None
     return int(x), int(y)
 
 
@@ -45,11 +48,13 @@ def detect_shapes(img_path):
 
         if sections in shapes:
             center = get_center(cnt)
-            markers[shapes[sections]].append(center)
+            if center is not None:
+                markers[shapes[sections]].append(center)
 
         elif sections > max(shapes.keys()):
             # That's probably the racing path.
             path = cnt
+            print "path detected"
 
     return markers, path
 
