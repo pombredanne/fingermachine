@@ -1,7 +1,11 @@
 import sys
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+import itertools
 
 import cv2
+import math
+
+Point = namedtuple('Point', ('x', 'y'))
 
 
 def get_center(contour):
@@ -16,7 +20,22 @@ def get_center(contour):
         y = moments['m01'] / moments['m00']
     except ZeroDivisionError:
         return None
-    return int(x), int(y)
+    return Point(x, y)
+
+
+def get_borders(borders):
+    matrix = dict()
+    for p1, p2, p3 in itertools.permutations(borders, 3):
+        (x1, y1), (x2, y2), (x3, y3) = p1, p2, p3
+
+        # pythagore!
+        a = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+        b = math.sqrt((x3 - x2) ** 2 + (y3 - y2) ** 2)
+        c = math.sqrt((x3 - x1) ** 2 + (y3 - y1) ** 2)
+
+        delta = (a ** 2 + b ** 2) - c ** 2
+        matrix[abs(delta)] = (p1, p2, p3)
+    return matrix[min(matrix.keys())]
 
 
 def detect_shapes(img_path):
@@ -61,9 +80,25 @@ def detect_shapes(img_path):
         elif sections > max(shapes.keys()):
             possible_paths.append(cnt)
 
-    # sort by x and then y.
-    # XXX ensure we have three "borders".
-    borders = sorted(markers['borders'], key=lambda x: (x[0], x[1]))
+    borders = get_borders(markers['borders'])
+
+    # let's find which points are where
+    #                   TR < top right
+    #
+    #
+    #
+    # BL                BR < bottom right
+    # ^ Bottom left
+
+    matrix = {}
+    for p1, p2, p3 in itertools.permutations(borders, 3):
+        diff = p1.x - p2.x + p1.y, p2.y
+        matrix[diff] = p1, p2, p3
+
+    bottom_right, p1, p2 = matrix[min(matrix.keys())]
+
+
+    return markers, path
     top_left = borders[0]
     bottom_left = borders[1]
     top_right = borders[2]
